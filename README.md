@@ -3,8 +3,7 @@
 Sistema para el caso 2 de EVA 3: planes, membresías, pagos, control de acceso por QR, reservas con lista de espera y dashboard de aforo.
 
 ## 🌐 Enlace de Despliegue en AWS EC2
-- **URL Pública:** `http://TU_IP_PUBLICA_DE_AWS/` (Ejemplo: `http://18.215.196.8/`)
-
+- **URL Pública:** `http://18.215.196.8/` 
 ## Requisitos
 
 - Python 3.12+.
