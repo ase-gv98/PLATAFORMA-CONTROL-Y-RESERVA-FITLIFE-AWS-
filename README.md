@@ -46,15 +46,10 @@ la portada, la barra superior y el dashboard administrativo. Solo las cuentas
 El RUT se valida con dígito verificador en el formulario web, Admin y API.
 Los duplicados muestran `Ya existe un socio con este RUT`.
 
-Para una demostración rápida, `seed_demo` crea usuarios y datos idempotentes:
-
-- Administrador: `fitlife_admin` / `FitLife.Admin.2026!`
-- Socio demo: `socio_demo` / `FitLife.Socio.2026!` (nombre visible: Socio Demo)
+Para una demostración rápida, `seed_demo` crea usuarios y datos idempotentes.
 
 Si ya había una sesión abierta, pulsa **Cerrar sesión** en la barra superior. Luego puedes iniciar
 sesión con el usuario que quieras; la raíz no muestra directamente el portal de ningún socio.
-
-Después de la demostración, cambia o elimina estas credenciales.
 
 ### Probar páginas de error amigables
 
@@ -121,8 +116,7 @@ El dashboard usa sesión web. La API puede autenticarse con `POST /api/token/` y
 
 ## Guía de pruebas funcionales
 
-Después de ejecutar `seed_demo`, inicia el servidor con `python manage.py runserver` y entra a
-`http://127.0.0.1:8000/` con `fitlife_admin` / `FitLife.Admin.2026!`.
+Después de ejecutar `seed_demo`, inicia el servidor con `python manage.py runserver` y con el usuario administrador de demostración (las credenciales se entregan al docente por el AAI).
 
 ### 1. Planes, pagos y estados de membresía
 
@@ -163,6 +157,10 @@ Después de ejecutar `seed_demo`, inicia el servidor con `python manage.py runse
 - Registra una salida con `POST /api/entries/{id}/exit/` y vuelve a actualizar el dashboard:
   el aforo debe disminuir.
 
-## AWS EC2
 
-En EC2 se usa el mismo proyecto y PostgreSQL local de la instancia. Se deben configurar las variables de `.env`, ejecutar `migrate` y `collectstatic`, y servir con Gunicorn detrás de Nginx. Nunca se debe subir `.env` al repositorio.
+## Despliegue en AWS EC2
+- Instancia Ubuntu Server en AWS Academy, con IP elástica http://18.215.196.8/
+- Arquitectura: Navegador → Nginx (puerto 80) → socket Unix → Gunicorn → Django/DRF → PostgreSQL (local en la instancia)
+- Variables del .env en el servidor: DJANGO_DEBUG=False, DJANGO_SECRET_KEY, DJANGO_ALLOWED_HOSTS, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_HOST, POSTGRES_PORT
+- Pasos: clonar el repo, crear venv, pip install -r requirements.txt, configurar .env, migrate, seed_demo, collectstatic, servicio systemd para Gunicorn y sitio de Nginx
+- Actualizar el servidor: git pull, pip install -r requirements.txt, migrate, collectstatic y sudo systemctl restart gunicorn
