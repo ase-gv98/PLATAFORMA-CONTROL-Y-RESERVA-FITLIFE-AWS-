@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Reservas | FitLife{% endblock %}
+{% block content %}
+<div class="page-heading mb-4"><p class="eyebrow mb-2">Organiza tu semana</p><h1 class="display-6 fw-bold mb-2">Reservas</h1><p class="text-muted mb-0">Gestiona las reservas y listas de espera de clases.</p></div>
+<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
+    {% for booking in bookings %}
+    <div class="col">
+        <article class="card h-100 border-0 shadow-sm">
+            <div class="card-body p-4 d-flex flex-column">
+                <div class="d-flex justify-content-between gap-2 mb-3">
+                    <h2 class="h5 fw-bold mb-0">{{ booking.group_class.name }}</h2>
+                    <span class="badge rounded-pill {% if booking.status == 'CONFIRMED' %}text-bg-success{% elif booking.status == 'WAITLIST' %}text-bg-warning{% else %}text-bg-secondary{% endif %}">{{ booking.get_status_display }}</span>
+                </div>
+                <p class="text-muted small mb-2">{{ booking.member }}</p>
+                <p class="small mb-4">{{ booking.group_class.starts_at|date:"d/m/Y H:i" }} · {{ booking.group_class.instructor }}</p>
+                <div class="mt-auto">{% if booking.status != 'CANCELLED' %}<form method="post" action="{% url 'cancel-booking' booking.id %}">{% csrf_token %}<button class="btn btn-outline-danger w-100" type="submit">Cancelar</button></form>{% else %}<span class="text-muted small">Sin acciones</span>{% endif %}</div>
+            </div>
+        </article>
+    </div>
+    {% empty %}<div class="col-12"><div class="alert alert-info">No hay reservas registradas.</div></div>{% endfor %}
+</div>
+{% endblock %}

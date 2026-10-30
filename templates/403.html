@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Acceso denegado | FitLife{% endblock %}
+{% block content %}
+<div class="text-center py-5">
+    <span class="display-1 fw-bold text-primary">403</span>
+    <h1 class="h2 fw-bold">No tienes permiso para acceder a esta pantalla.</h1>
+    <p class="text-muted">Si necesitas acceso administrativo, solicita que un administrador habilite tu cuenta.</p>
+    <a class="btn btn-primary" href="{% url 'home' %}">Volver al inicio</a>
+</div>
+{% endblock %}

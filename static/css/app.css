@@ -1,0 +1,52 @@
+:root {
+    --fitlife-navy: #0B1F3A;
+    --fitlife-blue: #1D4ED8;
+    --fitlife-blue-hover: #1E40AF;
+    --fitlife-green: #22C55E;
+    --fitlife-orange: #F97316;
+    --fitlife-bg: #F3F6FB;
+    --fitlife-text: #0F172A;
+    --fitlife-muted: #475569;
+    --fitlife-shadow: 0 .45rem 1.4rem rgba(11, 31, 58, .10);
+}
+
+body {
+    background: var(--fitlife-bg);
+    color: var(--fitlife-text);
+    font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+}
+
+.app-navbar { background: var(--fitlife-navy); box-shadow: 0 4px 18px rgba(11, 31, 58, .2); }
+.navbar-brand { letter-spacing: -.03em; }
+.navbar .nav-link { color: rgba(255,255,255,.82); font-size: .82rem; font-weight: 600; margin-right: .25rem; }
+.navbar .nav-link:hover, .navbar .nav-link:focus { color: #fff; }
+.eyebrow { color: var(--fitlife-blue); font-size: .75rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.metric-card, .card, .feature-card { border-radius: 1rem; box-shadow: var(--fitlife-shadow); }
+.metric-card { border-top: 4px solid var(--fitlife-blue); }
+.metric-label { color: var(--fitlife-muted); font-size: .82rem; font-weight: 600; }
+.metric-value { color: var(--fitlife-text); font-size: 2.25rem; font-weight: 800; letter-spacing: -.06em; }
+.metric-icon { align-items: center; border-radius: .8rem; display: inline-flex; font-size: 1.25rem; height: 2.75rem; justify-content: center; width: 2.75rem; }
+.icon-blue { background: #dbeafe; color: var(--fitlife-blue); }
+.icon-orange { background: #ffedd5; color: var(--fitlife-orange); }
+.icon-purple { background: #ede9fe; color: #7c3aed; }
+.table thead th { background: #eaf0f8; border-bottom-width: 1px; color: var(--fitlife-muted); font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; }
+.table td, .table th { padding-bottom: 1rem; padding-top: 1rem; }
+.auth-layout { min-height: calc(100vh - 190px); }
+.auth-card { border-radius: 1.25rem; }
+.form-control { border-color: #cbd5e1; border-radius: .7rem; }
+.form-control:focus { border-color: #93c5fd; box-shadow: 0 0 0 .25rem rgba(29, 78, 216, .12); }
+.btn { border-radius: .65rem; font-weight: 700; }
+.btn-primary { background: var(--fitlife-blue); border-color: var(--fitlife-blue); }
+.btn-primary:hover { background: var(--fitlife-blue-hover); border-color: var(--fitlife-blue-hover); }
+.fitlife-hero { background: url("../img/gym-hero.jpg") center/cover; color: #fff; min-height: 520px; position: relative; }
+.fitlife-hero-overlay, .fitlife-mini-hero-overlay { background: rgba(11, 31, 58, .68); inset: 0; position: absolute; }
+.fitlife-hero-content { padding-bottom: 5rem; padding-top: 7rem; position: relative; }
+.fitlife-hero-content .lead { color: rgba(255,255,255,.9); max-width: 580px; }
+.feature-card { background: #fff; border-top: 4px solid var(--fitlife-green); min-height: 150px; padding: 1.25rem; }
+.feature-card strong { color: var(--fitlife-blue); font-size: 1.75rem; }
+.feature-card h3 { font-size: 1rem; font-weight: 800; margin: .5rem 0; }
+.feature-card p { color: var(--fitlife-muted); font-size: .85rem; margin: 0; }
+.fitlife-mini-hero { background-position: center 42%; background-size: cover; color: #fff; height: 160px; position: relative; }
+.fitlife-mini-hero-content { align-items: center; display: flex; height: 100%; position: relative; }
+.fitlife-mini-hero-content span { font-size: 1.4rem; font-weight: 800; }
+.qr-token-box { background: #eff6ff; border: 2px dashed var(--fitlife-blue); border-radius: .75rem; color: var(--fitlife-navy); font-family: monospace; font-size: 1.1rem; font-weight: 700; overflow-wrap: anywhere; padding: 1.25rem; }

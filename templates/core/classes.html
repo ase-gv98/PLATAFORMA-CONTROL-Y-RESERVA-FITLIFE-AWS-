@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Clases grupales | FitLife{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-end mb-4"><div><p class="eyebrow mb-2">Agenda FitLife</p><h1 class="display-6 fw-bold mb-2">Clases grupales</h1><p class="text-muted mb-0">Reserva tu próximo entrenamiento y revisa los cupos disponibles.</p></div>{% if user.is_staff or user.is_superuser %}<a class="btn btn-primary" href="{% url 'admin-classes' %}">Administrar clases</a>{% endif %}</div>
+<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
+    {% for item in classes %}
+    <div class="col">
+        <article class="card h-100 border-0 shadow-sm">
+            <div class="card-body p-4 d-flex flex-column">
+                <h2 class="h5 fw-bold">{{ item.name }}</h2>
+                <p class="text-muted mb-2">{{ item.instructor }}</p>
+                <p class="small mb-2">{{ item.starts_at|date:"d/m/Y H:i" }} — {{ item.ends_at|date:"H:i" }}</p>
+                <span class="badge rounded-pill {% if item.available_spots %}text-bg-success{% else %}text-bg-secondary{% endif %} align-self-start mb-4">{{ item.available_spots }} / {{ item.capacity }} cupos</span>
+                <form method="post" action="{% url 'book-class' item.id %}" class="mt-auto">
+                    {% csrf_token %}<button class="btn btn-primary w-100" type="submit">Reservar</button>
+                </form>
+            </div>
+        </article>
+    </div>
+    {% empty %}<div class="col-12"><div class="alert alert-info">No hay clases próximas.</div></div>{% endfor %}
+</div>
+{% endblock %}

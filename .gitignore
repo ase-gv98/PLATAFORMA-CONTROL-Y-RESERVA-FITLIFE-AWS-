@@ -1,0 +1,24 @@
+# Entornos y secretos
+.venv/
+venv/
+.env
+*.pem
+*.key
+
+# Base de datos local
+db.sqlite3
+*.sqlite3
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Archivos generados por collectstatic y logs
+staticfiles/
+*.log
+
+# Editor y sistema
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store

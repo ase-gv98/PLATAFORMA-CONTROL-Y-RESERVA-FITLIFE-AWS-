@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Inicio | FitLife{% endblock %}
+
+{% block content %}
+<section class="fitlife-hero mb-5" style="background-image: url('{% static 'img/gym-hero.jpg' %}');">
+    <div class="fitlife-hero-overlay"></div>
+    <div class="container fitlife-hero-content">
+        <span class="badge text-bg-primary mb-3">Centro deportivo FitLife</span>
+        <h1 class="display-3 fw-bold">Entrena más fuerte.<br>Vive mejor.</h1>
+        <p class="lead">Membresías, clases y acceso inteligente en un solo lugar.</p>
+        {% if user.is_authenticated %}
+            {% if user.is_staff %}<a class="btn btn-primary btn-lg" href="{% url 'dashboard' %}">Panel de administración</a>{% else %}<a class="btn btn-primary btn-lg" href="{% url 'member-dashboard' %}">Mi panel</a>{% endif %}
+        {% else %}
+            <a class="btn btn-primary btn-lg" href="{% url 'login' %}">Iniciar sesión</a>
+        {% endif %}
+    </div>
+</section>
+<section class="py-4 py-lg-5">
+    <div class="row align-items-center g-4">
+        <div class="col-lg-7">
+            <span class="eyebrow">Todo lo que necesitas</span>
+            <h2 class="display-6 fw-bold">Una experiencia simple para socios y administradores.</h2>
+            <p class="lead text-muted">Controla el acceso, la agenda y el estado de las membresías con información clara.</p>
+            {% if user.is_authenticated %}
+                {% if user.is_staff %}<a class="btn btn-primary me-2" href="/admin/">Panel de administración</a><a class="btn btn-outline-primary" href="{% url 'access-qr' %}">Control de acceso QR</a>{% else %}<a class="btn btn-primary me-2" href="{% url 'member-dashboard' %}">Mi panel</a><a class="btn btn-outline-primary" href="{% url 'classes' %}">Clases grupales</a>{% endif %}
+            {% endif %}
+        </div>
+        <div class="col-lg-5">
+            <div class="row g-3">
+                <div class="col-6"><div class="feature-card"><strong>★</strong><h3>Membresías</h3><p>Planes claros y vigentes.</p></div></div>
+                <div class="col-6"><div class="feature-card"><strong>◈</strong><h3>Reservas</h3><p>Control de cupos.</p></div></div>
+                <div class="col-6"><div class="feature-card"><strong>↗</strong><h3>Clases</h3><p>Agenda tus entrenamientos.</p></div></div>
+                <div class="col-6"><div class="feature-card"><strong>⌁</strong><h3>Acceso y aforo</h3><p>Información en tiempo real.</p></div></div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

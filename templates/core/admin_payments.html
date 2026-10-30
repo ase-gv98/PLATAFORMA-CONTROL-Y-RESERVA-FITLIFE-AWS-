@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% load fitlife_filters %}
+{% block title %}Pagos | FitLife{% endblock %}
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-3 mb-4">
+    <div><p class="eyebrow mb-2">Panel administrativo</p><h1 class="display-6 fw-bold mb-2">Pagos</h1><p class="text-muted mb-0">Gestiona pagos registrados y sus estados.</p></div>
+    <a class="btn btn-primary" href="{% url 'admin-payment-panel-create' %}">Nuevo pago</a>
+</div>
+<form method="get" class="card border-0 shadow-sm mb-4"><div class="card-body"><div class="row g-2 align-items-end">
+    <div class="col-12 col-lg-3"><label class="form-label small fw-semibold" for="q">Buscar socio o RUT</label><input id="q" name="q" value="{{ query }}" class="form-control" placeholder="Nombre, usuario o RUT"></div>
+    <div class="col-6 col-lg-2"><label class="form-label small fw-semibold" for="status">Estado</label><select id="status" name="status" class="form-select"><option value="">Todos</option>{% for value,label in payment_statuses %}<option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <div class="col-6 col-lg-2"><label class="form-label small fw-semibold" for="payment_method">Método</label><select id="payment_method" name="payment_method" class="form-select"><option value="">Todos</option>{% for value,label in payment_methods %}<option value="{{ value }}" {% if method_filter == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <div class="col-6 col-lg-2"><label class="form-label small fw-semibold" for="date_from">Desde</label><input id="date_from" name="date_from" type="date" value="{{ date_from }}" class="form-control"></div>
+    <div class="col-6 col-lg-2"><label class="form-label small fw-semibold" for="date_to">Hasta</label><input id="date_to" name="date_to" type="date" value="{{ date_to }}" class="form-control"></div>
+    <div class="col-12 col-lg-1"><button class="btn btn-outline-primary w-100" type="submit">Filtrar</button></div>
+</div></div></form>
+<div class="card border-0 shadow-sm overflow-hidden"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
+<thead><tr><th>Socio</th><th>Plan</th><th>Monto</th><th>Método</th><th>Estado</th><th>Fecha</th><th class="text-end">Acciones</th></tr></thead>
+<tbody>{% for payment in page_obj %}
+<tr><td class="fw-semibold">{{ payment.member }}<span class="d-block text-muted small">{{ payment.member.rut|default:"Sin RUT" }}</span></td><td>{{ payment.membership.plan.name }}</td><td class="fw-bold">{{ payment.amount|clp }}</td><td>{{ payment.get_payment_method_display }}</td><td><span class="badge rounded-pill {% if payment.status == 'PAID' %}text-bg-success{% elif payment.status == 'REFUNDED' %}text-bg-danger{% else %}text-bg-warning{% endif %}">{{ payment.get_status_display }}</span></td><td>{{ payment.paid_at|date:"d/m/Y H:i" }}</td><td class="text-end text-nowrap"><a class="btn btn-sm btn-outline-primary" href="{% url 'admin-payment-panel-edit' payment.id %}">Editar</a> <a class="btn btn-sm btn-outline-danger" href="{% url 'admin-payment-panel-delete' payment.id %}">Eliminar</a></td></tr>
+{% empty %}<tr><td colspan="7" class="text-center text-muted py-5">No hay pagos que coincidan.</td></tr>{% endfor %}</tbody>
+</table></div></div>
+{% if page_obj.has_other_pages %}<nav class="mt-4" aria-label="Paginación"><ul class="pagination justify-content-center">{% if page_obj.has_previous %}<li class="page-item"><a class="page-link" href="?q={{ query|urlencode }}&status={{ status_filter }}&payment_method={{ method_filter }}&date_from={{ date_from }}&date_to={{ date_to }}&page={{ page_obj.previous_page_number }}">Anterior</a></li>{% endif %}<li class="page-item active"><span class="page-link">{{ page_obj.number }}</span></li>{% if page_obj.has_next %}<li class="page-item"><a class="page-link" href="?q={{ query|urlencode }}&status={{ status_filter }}&payment_method={{ method_filter }}&date_from={{ date_from }}&date_to={{ date_to }}&page={{ page_obj.next_page_number }}">Siguiente</a></li>{% endif %}</ul></nav>{% endif %}
+{% endblock %}

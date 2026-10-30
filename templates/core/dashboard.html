@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard de aforo | FitLife{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-3 mb-4">
+    <div>
+        <p class="eyebrow mb-2">Centro deportivo FitLife</p>
+        <h1 class="display-6 fw-bold mb-2">Resumen operativo</h1>
+        <p class="text-muted mb-0">Controla el aforo y la actividad de tu gimnasio en un solo lugar.</p>
+    </div>
+    <a class="btn btn-primary px-4" href="{% url 'dashboard' %}">
+        <span class="me-1">↻</span> Actualizar aforo
+    </a>
+</div>
+
+<section class="row g-3 mb-4" aria-label="Indicadores principales">
+    <div class="col-12 col-md-4">
+        <article class="card metric-card h-100 shadow-sm border-0">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div><p class="metric-label mb-2">Personas dentro</p><p class="metric-value mb-0">{{ occupancy }}</p></div>
+                    <span class="metric-icon icon-blue">⌂</span>
+                </div>
+                <span class="badge rounded-pill text-bg-success mt-3">En tiempo real</span>
+            </div>
+        </article>
+    </div>
+    <div class="col-12 col-md-4">
+        <article class="card metric-card h-100 shadow-sm border-0">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div><p class="metric-label mb-2">Membresías activas</p><p class="metric-value mb-0">{{ memberships }}</p></div>
+                    <span class="metric-icon icon-orange">★</span>
+                </div>
+                <span class="text-muted small mt-3 d-inline-block">Socios vigentes</span>
+            </div>
+        </article>
+    </div>
+    <div class="col-12 col-md-4">
+        <article class="card metric-card h-100 shadow-sm border-0">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div><p class="metric-label mb-2">Próximas clases</p><p class="metric-value mb-0">{{ classes|length }}</p></div>
+                    <span class="metric-icon icon-purple">▣</span>
+                </div>
+                <span class="text-muted small mt-3 d-inline-block">Agenda del centro</span>
+            </div>
+        </article>
+    </div>
+</section>
+
+<section class="row g-3 mb-4">
+    <div class="col-12 col-md-6"><article class="card border-0 shadow-sm h-100"><div class="card-body p-4"><p class="metric-label mb-2">Accesos autorizados hoy</p><p class="metric-value mb-0">{{ authorized_today }}</p><span class="text-muted small">Lecturas QR aceptadas</span></div></article></div>
+    <div class="col-12 col-md-6"><article class="card border-0 shadow-sm h-100"><div class="card-body p-4"><p class="metric-label mb-3">Gestión rápida</p><div class="d-flex flex-wrap gap-2"><a class="btn btn-sm btn-outline-primary" href="{% url 'admin-plans' %}">Planes</a><a class="btn btn-sm btn-outline-primary" href="{% url 'admin-members' %}">Socios</a><a class="btn btn-sm btn-outline-primary" href="{% url 'admin-classes' %}">Clases</a><a class="btn btn-sm btn-outline-primary" href="{% url 'admin-payments-panel' %}">Pagos</a><a class="btn btn-sm btn-outline-primary" href="{% url 'admin-memberships-panel' %}">Membresías</a><a class="btn btn-sm btn-outline-secondary" href="/admin/">Django Admin</a></div></div></article></div>
+</section>
+
+<section class="card border-0 shadow-sm overflow-hidden">
+    <div class="card-header bg-white border-0 p-4 pb-2 d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2">
+        <div>
+            <h2 class="h5 fw-bold mb-1">Próximas clases grupales</h2>
+            <p class="text-muted small mb-0">Revisa horarios y disponibilidad de cupos.</p>
+        </div>
+        <a class="btn btn-sm btn-outline-primary" href="{% url 'classes' %}">Ver todas</a>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-striped align-middle mb-0">
+            <thead><tr><th class="ps-4">Clase</th><th>Fecha y hora</th><th>Disponibilidad</th><th class="text-end pe-4">Estado</th></tr></thead>
+            <tbody>
+            {% for item in classes %}
+                <tr>
+                    <td class="ps-4 fw-semibold">{{ item.name }}<span class="d-block text-muted small fw-normal">{{ item.instructor }}</span></td>
+                    <td>{{ item.starts_at|date:"d/m/Y · H:i" }}</td>
+                    <td>{{ item.available_spots }} de {{ item.capacity }} cupos</td>
+                    <td class="text-end pe-4"><span class="badge rounded-pill {% if item.available_spots %}text-bg-success{% else %}text-bg-secondary{% endif %}">{% if item.available_spots %}Disponible{% else %}Completa{% endif %}</span></td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="4" class="text-center text-muted py-5">No hay clases programadas.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

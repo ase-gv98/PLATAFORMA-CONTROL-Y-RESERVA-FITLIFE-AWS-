@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load fitlife_filters %}
+{% block title %}Membresías | FitLife{% endblock %}
+{% block content %}
+<div class="page-heading mb-4"><p class="eyebrow mb-2">Gestión de socios</p><h1 class="display-6 fw-bold mb-2">Membresías</h1><p class="text-muted mb-0">Consulta el estado y vigencia de cada membresía.</p></div>
+<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
+    {% for membership in memberships %}
+    <div class="col">
+        <article class="card h-100 border-0 shadow-sm {% if membership.estado == 'ACTIVE' %}border-primary{% endif %}">
+            <div class="card-body p-4 d-flex flex-column">
+                <div class="d-flex justify-content-between gap-2 mb-3">
+                    <h2 class="h5 fw-bold mb-0">{{ membership.plan.name }}</h2>
+                    <span class="badge rounded-pill {% if membership.estado == 'ACTIVE' %}text-bg-success{% elif membership.estado == 'FROZEN' %}text-bg-warning{% else %}text-bg-secondary{% endif %}">{{ membership.get_estado_display }}</span>
+                </div>
+                <p class="text-muted small mb-2">{{ membership.member }}</p>
+                <p class="text-muted small mb-4">{{ membership.start_date|date:"d/m/Y" }} — {{ membership.end_date|date:"d/m/Y" }}</p>
+                <a class="btn btn-outline-primary w-100 mt-auto" href="{% url 'memberships' %}">Ver membresías</a>
+            </div>
+        </article>
+    </div>
+    {% empty %}<div class="col-12"><div class="alert alert-info">No hay membresías registradas.</div></div>{% endfor %}
+</div>
+{% endblock %}

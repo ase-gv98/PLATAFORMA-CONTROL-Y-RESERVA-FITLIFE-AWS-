@@ -1,0 +1,125 @@
+:root,
+html[data-theme="light"],
+html[data-theme="dark"] {
+    --primary: #1D4ED8;
+    --secondary: #12294D;
+    --accent: #F97316;
+    --primary-fg: #FFFFFF;
+    --body-bg: #F3F6FB;
+    --body-fg: #0F172A;
+    --header-bg: #0B1F3A;
+    --header-color: #FFFFFF;
+    --header-link-color: #FFFFFF;
+    --breadcrumbs-bg: #1D4ED8;
+    --breadcrumbs-fg: #FFFFFF;
+    --breadcrumbs-link-fg: #FFFFFF;
+    --link-fg: #1D4ED8;
+    --link-hover-color: #1E40AF;
+    --darkened-bg: #E8EEF8;
+    --selected-bg: #DBEAFE;
+    --selected-row: #DBEAFE;
+    --button-bg: #1D4ED8;
+    --button-hover-bg: #1E40AF;
+    --default-button-bg: #22C55E;
+    --default-button-hover-bg: #16A34A;
+    --object-tools-bg: #1D4ED8;
+    --object-tools-hover-bg: #1E40AF;
+    --border-color: #CBD5E1;
+    --body-quiet-color: #475569;
+    --body-loud-color: #0F172A;
+    --hairline-color: #CBD5E1;
+    --darkened-bg: #E8EEF8;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --primary: #1D4ED8;
+        --secondary: #12294D;
+        --accent: #F97316;
+        --primary-fg: #FFFFFF;
+        --body-bg: #F3F6FB;
+        --body-fg: #0F172A;
+        --header-bg: #0B1F3A;
+        --header-color: #FFFFFF;
+        --header-link-color: #FFFFFF;
+        --breadcrumbs-bg: #1D4ED8;
+        --breadcrumbs-fg: #FFFFFF;
+        --breadcrumbs-link-fg: #FFFFFF;
+        --link-fg: #1D4ED8;
+        --link-hover-color: #1E40AF;
+        --darkened-bg: #E8EEF8;
+        --selected-bg: #DBEAFE;
+        --selected-row: #DBEAFE;
+        --button-bg: #1D4ED8;
+        --button-hover-bg: #1E40AF;
+        --default-button-bg: #22C55E;
+        --default-button-hover-bg: #16A34A;
+        --object-tools-bg: #1D4ED8;
+        --object-tools-hover-bg: #1E40AF;
+        --border-color: #CBD5E1;
+    }
+}
+
+body {
+    background: var(--body-bg);
+    color: var(--body-fg);
+}
+
+#header {
+    background: var(--header-bg);
+    color: var(--header-color);
+}
+
+#branding .navbar-brand { font-size: 1.35rem; }
+#nav-sidebar,
+html[data-theme="dark"] #nav-sidebar,
+html[data-theme="light"] #nav-sidebar { background: #0B1F3A !important; }
+#nav-sidebar .module,
+#nav-sidebar .module caption,
+#nav-sidebar .module h2,
+#nav-sidebar .section { background: #12294D !important; color: #BFDBFE !important; }
+#nav-sidebar .module caption,
+#nav-sidebar .module caption a,
+#nav-sidebar .module h2 { color: #BFDBFE !important; }
+#nav-sidebar .module th,
+#nav-sidebar .module td { background: transparent !important; border-bottom: 1px solid rgba(191,219,254,.18); }
+#nav-sidebar .module th a,
+#nav-sidebar .module td a,
+#nav-sidebar a { background: #1D4ED8 !important; border-radius: .4rem; color: #FFFFFF !important; display: block; font-weight: 700; margin: .25rem .4rem; padding: .5rem .65rem; }
+#nav-sidebar .module th a:hover,
+#nav-sidebar .module td a:hover,
+#nav-sidebar a:hover { background: #2563EB !important; color: #FFFFFF !important; }
+#nav-sidebar .current-model,
+#nav-sidebar .current-model a { background: #FFFFFF !important; color: #0B1F3A !important; }
+#nav-sidebar .current-model { border-left: 4px solid #22C55E !important; }
+#nav-sidebar .addlink { background: #22C55E !important; color: #052E16 !important; }
+#nav-sidebar .addlink:hover { background: #16A34A !important; color: #FFFFFF !important; }
+#nav-sidebar input[type="search"],
+#nav-sidebar input[type="text"] { background: #FFFFFF !important; color: #0F172A !important; }
+#content { background: #F3F6FB; }
+#content-main .module,
+#content-related .module,
+.module { border-radius: .75rem; box-shadow: 0 .25rem 1rem rgba(11, 31, 58, .08); overflow: hidden; }
+.dashboard .module table th,
+.dashboard .module table td,
+#changelist table thead th { background: #E8EEF8; }
+#changelist table tbody tr:hover { background: #DBEAFE; }
+input, textarea, select, .vTextField {
+    border: 1px solid #CBD5E1;
+    border-radius: .4rem;
+}
+input:focus, textarea:focus, select:focus, .vTextField:focus {
+    border-color: #1D4ED8;
+    box-shadow: 0 0 0 .2rem rgba(29, 78, 216, .15);
+    outline: none;
+}
+.fitlife-admin-navbar { align-items: center; display: flex; gap: .5rem; margin-left: 1rem; }
+.fitlife-admin-link { border-radius: .5rem !important; font-weight: 700 !important; padding: .45rem .8rem !important; }
+.fitlife-admin-quick-actions .btn-primary { background: #1D4ED8; border-color: #1D4ED8; color: #FFFFFF; }
+.fitlife-admin-quick-actions .btn-primary:hover { background: #1E40AF; border-color: #1E40AF; color: #FFFFFF; }
+.fitlife-admin-logout { display: inline-block; margin: 0; }
+.fitlife-admin-quick-actions { background: #FFFFFF; border-radius: .85rem; box-shadow: 0 .35rem 1rem rgba(11, 31, 58, .10); display: flex; gap: .75rem; margin-bottom: 1.25rem; padding: 1rem; }
+.submit-row input, .button, input[type="submit"], input[type="button"] { border-radius: .4rem; }
+.submit-row input.default, input[type="submit"].default { background: #22C55E; }
+.submit-row input.default:hover, input[type="submit"].default:hover { background: #16A34A; }
+.deletelink, .deletelink-box a { background: #DC2626 !important; color: #FFFFFF !important; }

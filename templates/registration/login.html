@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Ingresar | FitLife{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center align-items-center auth-layout">
+    <div class="col-12 col-md-7 col-lg-5">
+        <div class="card border-0 shadow-lg auth-card">
+            <div class="card-body p-4 p-sm-5">
+                <div class="text-center mb-4">
+                    <span class="brand-mark brand-mark-lg"></span>
+                    <h1 class="h3 fw-bold mt-3 mb-2">Bienvenido a FitLife</h1>
+                    <p class="text-muted mb-0">Ingresa para gestionar tu centro deportivo.</p>
+                </div>
+                {% if form.errors %}
+                    <div class="alert alert-danger small" role="alert">Usuario o contraseña incorrectos. Inténtalo nuevamente.</div>
+                {% endif %}
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="id_username">Usuario</label>
+                        <input class="form-control form-control-lg" type="text" name="username" id="id_username" value="{{ form.username.value|default:'' }}" autocomplete="username" required autofocus>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold" for="id_password">Contraseña</label>
+                        <input class="form-control form-control-lg" type="password" name="password" id="id_password" autocomplete="current-password" required>
+                    </div>
+                    <input type="hidden" name="next" value="{{ next }}">
+                    <button class="btn btn-primary btn-lg w-100" type="submit">Ingresar al panel</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

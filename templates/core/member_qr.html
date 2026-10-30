@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Mi acceso QR | FitLife{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-7">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4 p-lg-5 text-center">
+                <p class="eyebrow mb-2">Acceso personal</p>
+                <h1 class="display-6 fw-bold">Mi código de acceso QR</h1>
+                <p class="text-muted">Presenta este código al personal de recepción para validar tu membresía.</p>
+                <div class="qr-token-box my-4">{{ member.qr_token }}</div>
+                <a class="btn btn-outline-primary" href="{% url 'member-dashboard' %}">Volver a mi panel</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% load fitlife_filters %}
+{% block title %}Planes | FitLife{% endblock %}
+{% block content %}
+<div class="page-heading mb-4">
+    <p class="eyebrow mb-2">Catálogo comercial</p>
+    <h1 class="display-6 fw-bold mb-2">Planes</h1>
+    <p class="text-muted mb-0">Opciones de membresía para cada objetivo.</p>
+</div>
+<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
+    {% for plan in plans %}
+    <div class="col">
+        <article class="card plan-card h-100 border-0 shadow-sm {% if plan.active %}border-primary{% endif %}">
+            <div class="card-body p-4 d-flex flex-column">
+                {% if plan.active %}<span class="badge text-bg-primary align-self-start mb-3">Plan activo</span>{% endif %}
+                <h2 class="h4 fw-bold">{{ plan.name }}</h2>
+                <p class="text-muted">{{ plan.description|default:"Acceso completo a las instalaciones FitLife." }}</p>
+                <ul class="list-unstyled small text-muted mb-4">
+                    <li class="mb-2"><span class="text-success fw-bold me-2">✓</span>Acceso a instalaciones</li>
+                    <li class="mb-2"><span class="text-success fw-bold me-2">✓</span>Reserva de clases grupales</li>
+                    <li><span class="text-success fw-bold me-2">✓</span>Control de acceso QR</li>
+                </ul>
+                <p class="display-6 fw-bold mb-3 mt-auto">{{ plan.monthly_price|clp }} <small class="fs-6 text-muted fw-normal">/mes</small></p>
+                <a class="btn btn-outline-primary w-100" href="{% url 'plans' %}">Ver planes</a>
+            </div>
+        </article>
+    </div>
+    {% empty %}
+        <div class="col-12"><div class="alert alert-info">No hay planes activos disponibles.</div></div>
+    {% endfor %}
+</div>
+{% endblock %}
