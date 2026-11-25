@@ -1,12 +1,16 @@
 from datetime import timedelta
 from django.contrib.auth import get_user_model
+from django.contrib.auth.hashers import Argon2PasswordHasher
 from django.contrib.admin.models import LogEntry
 from django.core.exceptions import ValidationError
+from django.core.files.storage import default_storage
 from django.db import IntegrityError
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.contrib.staticfiles import finders
 from django.core.management import call_command
 from django.test import TestCase, override_settings
 from django.utils import timezone
+from rest_framework.test import APIClient
 from .forms import MemberCreateForm
 from .models import Booking, GroupClass, MemberProfile, Membership, Payment, Plan
 from .services import book_class, cancel_booking, validate_qr_access
@@ -14,6 +18,14 @@ from .serializers import MembershipSerializer
 from .exceptions import fitlife_exception_handler
 
 
+class TestArgon2PasswordHasher(Argon2PasswordHasher):
+    memory_cost = 19 * 1024
+
+
+@override_settings(PASSWORD_HASHERS=[
+    'core.tests.TestArgon2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+])
 class FitLifeRulesTests(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -21,6 +33,7 @@ class FitLifeRulesTests(TestCase):
         call_command('collectstatic', interactive=False, verbosity=0)
 
     def setUp(self):
+        self.api_client = APIClient()
         user_model = get_user_model()
         self.member = MemberProfile.objects.create(user=user_model.objects.create_user('ana', password='pass12345'))
         self.member.rut = '12345678-5'
@@ -34,6 +47,267 @@ class FitLifeRulesTests(TestCase):
             name='HIIT', instructor='Coach', starts_at=timezone.now() + timedelta(days=1),
             ends_at=timezone.now() + timedelta(days=1, minutes=45), capacity=1,
         )
+
+    def authenticate_api(self, user):
+        response = self.api_client.post('/api/token/', {
+            'username': user.username,
+            'password': 'pass12345',
+        }, format='json')
+        self.assertEqual(response.status_code, 200)
+        self.api_client.credentials(HTTP_AUTHORIZATION=f'Bearer {response.data["access"]}')
+        return response.data
+
+    def test_jwt_login_refresh_rotation_and_blacklist(self):
+        response = self.api_client.post('/api/token/', {
+            'username': self.member.user.username,
+            'password': 'pass12345',
+        }, format='json')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('access', response.data)
+        self.assertIn('refresh', response.data)
+
+        old_refresh = response.data['refresh']
+        response = self.api_client.post('/api/token/refresh/', {'refresh': old_refresh}, format='json')
+        self.assertEqual(response.status_code, 200)
+        rotated_refresh = response.data['refresh']
+        self.assertNotEqual(rotated_refresh, old_refresh)
+        self.assertEqual(
+            self.api_client.post('/api/token/refresh/', {'refresh': old_refresh}, format='json').status_code,
+            401,
+        )
+
+        response = self.api_client.post(
+            '/api/token/blacklist/',
+            {'refresh': rotated_refresh},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            self.api_client.post('/api/token/refresh/', {'refresh': rotated_refresh}, format='json').status_code,
+            401,
+        )
+
+    def test_jwt_login_rejects_invalid_password_and_api_requires_bearer_token(self):
+        response = self.api_client.post('/api/token/', {
+            'username': self.member.user.username,
+            'password': 'incorrecta',
+        }, format='json')
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(self.api_client.get('/api/plans/').status_code, 401)
+        self.api_client.credentials(HTTP_AUTHORIZATION='Bearer not-a-valid-token')
+        self.assertEqual(self.api_client.get('/api/plans/').status_code, 401)
+
+    def test_member_cannot_create_staff_managed_plan(self):
+        self.authenticate_api(self.member.user)
+        response = self.api_client.post('/api/plans/', {
+            'name': 'Plan no autorizado',
+            'monthly_price': '10000.00',
+        }, format='json')
+        self.assertEqual(response.status_code, 403)
+
+    def test_health_is_public_without_authentication(self):
+        response = self.api_client.get('/api/health/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {'status': 'ok'})
+        self.assertEqual(self.api_client.get('/api/schema/').status_code, 200)
+        self.assertEqual(self.api_client.get('/api/docs/').status_code, 200)
+
+    def test_staff_can_complete_crud_for_related_api_entities(self):
+        admin = get_user_model().objects.create_user('crud_api_admin', password='pass12345', is_staff=True)
+        self.authenticate_api(admin)
+
+        response = self.api_client.post('/api/plans/', {
+            'name': 'Plan API',
+            'description': 'Plan de prueba',
+            'monthly_price': '30000.00',
+            'active': True,
+        }, format='json')
+        self.assertEqual(response.status_code, 201)
+        plan_id = response.data['id']
+        self.assertEqual(self.api_client.get('/api/plans/').status_code, 200)
+        self.assertEqual(self.api_client.get(f'/api/plans/{plan_id}/').status_code, 200)
+        response = self.api_client.put(f'/api/plans/{plan_id}/', {
+            'name': 'Plan API actualizado',
+            'description': 'Actualizado',
+            'monthly_price': '32000.00',
+            'active': True,
+        }, format='json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            self.api_client.patch(f'/api/plans/{plan_id}/', {'active': False}, format='json').status_code,
+            200,
+        )
+
+        today = timezone.localdate()
+        response = self.api_client.post('/api/memberships/', {
+            'member': self.other.id,
+            'plan': plan_id,
+            'start_date': today.isoformat(),
+            'end_date': (today + timedelta(days=30)).isoformat(),
+            'estado': Membership.Status.FROZEN,
+        }, format='json')
+        self.assertEqual(response.status_code, 201)
+        membership_id = response.data['id']
+        self.assertEqual(self.api_client.get('/api/memberships/').status_code, 200)
+        self.assertEqual(self.api_client.get(f'/api/memberships/{membership_id}/').status_code, 200)
+        membership_data = {
+            'member': self.other.id,
+            'plan': plan_id,
+            'start_date': today.isoformat(),
+            'end_date': (today + timedelta(days=45)).isoformat(),
+            'estado': Membership.Status.FROZEN,
+        }
+        self.assertEqual(
+            self.api_client.put(f'/api/memberships/{membership_id}/', membership_data, format='json').status_code,
+            200,
+        )
+        self.assertEqual(
+            self.api_client.patch(f'/api/memberships/{membership_id}/', {'estado': Membership.Status.EXPIRED},
+                                  format='json').status_code,
+            200,
+        )
+
+        response = self.api_client.post('/api/payments/', {
+            'member': self.other.id,
+            'membership': membership_id,
+            'amount': '32000.00',
+            'reference': 'API-CRUD-001',
+            'payment_method': Payment.Method.CARD,
+            'status': Payment.Status.PAID,
+        }, format='json')
+        self.assertEqual(response.status_code, 201)
+        payment_id = response.data['id']
+        self.assertEqual(self.api_client.get('/api/payments/').status_code, 200)
+        self.assertEqual(self.api_client.get(f'/api/payments/{payment_id}/').status_code, 200)
+        payment_data = {
+            'member': self.other.id,
+            'membership': membership_id,
+            'amount': '33000.00',
+            'reference': 'API-CRUD-001',
+            'payment_method': Payment.Method.CARD,
+            'status': Payment.Status.PENDING,
+        }
+        self.assertEqual(
+            self.api_client.put(f'/api/payments/{payment_id}/', payment_data, format='json').status_code,
+            200,
+        )
+        self.assertEqual(
+            self.api_client.patch(f'/api/payments/{payment_id}/', {'amount': '34000.00'}, format='json').status_code,
+            200,
+        )
+
+        starts_at = timezone.now() + timedelta(days=3)
+        ends_at = starts_at + timedelta(minutes=45)
+        class_data = {
+            'name': 'Clase API',
+            'instructor': 'Coach',
+            'starts_at': starts_at.isoformat(),
+            'ends_at': ends_at.isoformat(),
+            'capacity': 12,
+            'active': True,
+        }
+        response = self.api_client.post('/api/classes/', class_data, format='json')
+        self.assertEqual(response.status_code, 201)
+        class_id = response.data['id']
+        self.assertEqual(self.api_client.get('/api/classes/').status_code, 200)
+        self.assertEqual(self.api_client.get(f'/api/classes/{class_id}/').status_code, 200)
+        class_data['name'] = 'Clase API actualizada'
+        self.assertEqual(
+            self.api_client.put(f'/api/classes/{class_id}/', class_data, format='json').status_code,
+            200,
+        )
+        self.assertEqual(
+            self.api_client.patch(f'/api/classes/{class_id}/', {'capacity': 15}, format='json').status_code,
+            200,
+        )
+
+        self.assertEqual(self.api_client.delete(f'/api/payments/{payment_id}/').status_code, 204)
+        self.assertEqual(self.api_client.delete(f'/api/memberships/{membership_id}/').status_code, 204)
+        self.assertEqual(self.api_client.delete(f'/api/plans/{plan_id}/').status_code, 204)
+        self.assertEqual(self.api_client.delete(f'/api/classes/{class_id}/').status_code, 204)
+
+    def test_api_serializers_reject_invalid_amount_dates_and_rut(self):
+        admin = get_user_model().objects.create_user('validation_api_admin', password='pass12345', is_staff=True)
+        self.authenticate_api(admin)
+
+        response = self.api_client.post('/api/payments/', {
+            'member': self.member.id,
+            'membership': self.member.memberships.first().id,
+            'amount': '0',
+            'reference': 'API-ZERO-AMOUNT',
+        }, format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('amount', response.data)
+
+        response = self.api_client.post('/api/memberships/', {
+            'member': self.other.id,
+            'plan': self.plan.id,
+            'start_date': (timezone.localdate() + timedelta(days=5)).isoformat(),
+            'end_date': timezone.localdate().isoformat(),
+            'estado': Membership.Status.FROZEN,
+        }, format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('end_date', response.data)
+
+        response = self.api_client.patch(
+            f'/api/members/{self.member.id}/',
+            {'rut': '12345678-9'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('rut', response.data)
+
+    def test_staff_payment_receipt_upload_and_validation(self):
+        admin = get_user_model().objects.create_user('receipt_api_admin', password='pass12345', is_staff=True)
+        self.authenticate_api(admin)
+        payload = {
+            'member': self.member.id,
+            'membership': self.member.memberships.first().id,
+            'amount': '25000.00',
+            'reference': 'API-RECEIPT-001',
+            'receipt': SimpleUploadedFile('receipt.pdf', b'%PDF-1.4\nFitLife receipt'),
+        }
+        response = self.api_client.post('/api/payments/', payload, format='multipart')
+        self.assertEqual(response.status_code, 201)
+        payment_id = response.data['id']
+        payment = Payment.objects.get(pk=payment_id)
+        self.addCleanup(default_storage.delete, payment.receipt.name)
+        self.assertIn('payment-receipts/', response.data['receipt_url'])
+
+        response = self.api_client.patch(
+            f'/api/payments/{payment_id}/',
+            {'receipt': SimpleUploadedFile('updated.jpg', b'\xff\xd8\xffFitLife')},
+            format='multipart',
+        )
+        self.assertEqual(response.status_code, 200)
+        payment.refresh_from_db()
+        self.addCleanup(default_storage.delete, payment.receipt.name)
+
+        invalid_receipt = self.api_client.post('/api/payments/', {
+            'member': self.member.id,
+            'membership': self.member.memberships.first().id,
+            'amount': '1000.00',
+            'reference': 'API-RECEIPT-INVALID',
+            'receipt': SimpleUploadedFile('receipt.txt', b'not an allowed file'),
+        }, format='multipart')
+        self.assertEqual(invalid_receipt.status_code, 400)
+        self.assertIn('receipt', invalid_receipt.data)
+
+        oversized_receipt = self.api_client.post('/api/payments/', {
+            'member': self.member.id,
+            'membership': self.member.memberships.first().id,
+            'amount': '1000.00',
+            'reference': 'API-RECEIPT-LARGE',
+            'receipt': SimpleUploadedFile('large.pdf', b'%PDF-' + b'x' * (2 * 1024 * 1024)),
+        }, format='multipart')
+        self.assertEqual(oversized_receipt.status_code, 400)
+        self.assertIn('receipt', oversized_receipt.data)
+
+    def test_password_is_stored_as_argon2_hash(self):
+        user = get_user_model().objects.create_user('argon_user', password='plain-secret-123')
+        user.refresh_from_db()
+        self.assertTrue(user.password.startswith('argon2$'))
+        self.assertNotIn('plain-secret-123', user.password)
 
     def test_qr_creates_entry_for_active_membership(self):
         result = validate_qr_access(self.member.qr_token)
@@ -275,29 +549,31 @@ class FitLifeRulesTests(TestCase):
         )
         self.client.force_login(self.member.user)
         self.assertEqual(self.client.post('/mi-cuenta/pagar/').status_code, 403)
-        response = self.client.patch(
+        self.authenticate_api(self.member.user)
+        response = self.api_client.patch(
             f'/api/memberships/{self.member.memberships.first().id}/',
             {'estado': Membership.Status.FROZEN},
-            content_type='application/json',
+            format='json',
         )
         self.assertEqual(response.status_code, 403)
-        response = self.client.patch(
+        response = self.api_client.patch(
             f'/api/payments/{payment.id}/',
             {'amount': 1},
-            content_type='application/json',
+            format='json',
         )
         self.assertEqual(response.status_code, 403)
-        response = self.client.delete(f'/api/payments/{payment.id}/')
+        response = self.api_client.delete(f'/api/payments/{payment.id}/')
         self.assertEqual(response.status_code, 403)
 
     def test_admin_can_manage_memberships_and_payments_through_api(self):
         admin = get_user_model().objects.create_user('payment_admin', password='pass12345', is_staff=True)
         self.client.force_login(admin)
+        self.authenticate_api(admin)
         membership = self.member.memberships.first()
-        response = self.client.patch(
+        response = self.api_client.patch(
             f'/api/memberships/{membership.id}/',
             {'estado': Membership.Status.FROZEN},
-            content_type='application/json',
+            format='json',
         )
         self.assertEqual(response.status_code, 200)
 
@@ -326,10 +602,11 @@ class FitLifeRulesTests(TestCase):
         payment = Payment.objects.create(
             member=self.member, membership=membership, amount=25000, reference='PAY-ADMIN',
         )
-        response = self.client.patch(
+        self.authenticate_api(admin)
+        response = self.api_client.patch(
             f'/api/payments/{payment.id}/',
             {'status': Payment.Status.REFUNDED},
-            content_type='application/json',
+            format='json',
         )
         self.assertEqual(response.status_code, 200)
 
@@ -378,24 +655,25 @@ class FitLifeRulesTests(TestCase):
             response = self.client.get(url)
             self.assertEqual(response.status_code, 200)
             self.assertContains(response, '<html')
-        response = self.client.get('/api/', HTTP_ACCEPT='text/html')
+        self.authenticate_api(admin)
+        response = self.api_client.get('/api/', HTTP_ACCEPT='text/html')
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'bootstrap')
 
     def test_api_root_and_global_records_are_restricted(self):
-        response = self.client.get('/api/')
+        response = self.api_client.get('/api/')
         self.assertEqual(response.status_code, 401)
-        self.client.force_login(self.member.user)
-        response = self.client.get('/api/')
+        self.authenticate_api(self.member.user)
+        response = self.api_client.get('/api/')
         self.assertEqual(response.status_code, 403)
-        response = self.client.get('/api/members/')
+        response = self.api_client.get('/api/members/')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.json()['results']), 1)
-        response = self.client.get('/api/access-logs/')
+        response = self.api_client.get('/api/access-logs/')
         self.assertEqual(response.status_code, 403)
         admin = get_user_model().objects.create_user('api_admin', password='pass12345', is_staff=True)
-        self.client.force_login(admin)
-        self.assertEqual(self.client.get('/api/').status_code, 200)
+        self.authenticate_api(admin)
+        self.assertEqual(self.api_client.get('/api/').status_code, 200)
 
     def test_fitlife_static_assets_and_brand_markup_are_served(self):
         response = self.client.get('/')

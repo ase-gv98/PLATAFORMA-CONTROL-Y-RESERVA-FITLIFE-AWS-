@@ -11,6 +11,11 @@ class PlanSerializer(serializers.ModelSerializer):
         model = Plan
         fields = '__all__'
 
+    def validate_monthly_price(self, value):
+        if value <= 0:
+            raise serializers.ValidationError('El precio mensual debe ser mayor que cero.')
+        return value
+
 
 class MemberProfileSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
@@ -27,11 +32,10 @@ class MemberProfileSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'rut', 'phone', 'qr_token']
 
     def validate_rut(self, value):
+        if not value:
+            return None
         try:
-            try:
-                normalized = validate_chilean_rut(value)
-            except DjangoValidationError as error:
-                raise serializers.ValidationError(error.messages)
+            normalized = validate_chilean_rut(value)
             current_id = getattr(self.instance, 'pk', None)
             if MemberProfile.objects.filter(rut=normalized).exclude(pk=current_id).exists():
                 raise serializers.ValidationError('Ya existe un socio con este RUT')
@@ -47,8 +51,14 @@ class MembershipSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         member = attrs.get('member', getattr(self.instance, 'member', None))
+        start_date = attrs.get('start_date', getattr(self.instance, 'start_date', None))
+        end_date = attrs.get('end_date', getattr(self.instance, 'end_date', None))
         estado = attrs.get('estado', getattr(self.instance, 'estado', Membership.Status.ACTIVE))
         current_id = getattr(self.instance, 'pk', None)
+        if start_date and end_date and end_date < start_date:
+            raise serializers.ValidationError({
+                'end_date': 'La fecha de término no puede ser anterior al inicio.',
+            })
         if estado == Membership.Status.ACTIVE and member and Membership.objects.filter(
             member=member,
             estado=Membership.Status.ACTIVE,
@@ -58,9 +68,17 @@ class MembershipSerializer(serializers.ModelSerializer):
 
 
 class PaymentSerializer(serializers.ModelSerializer):
+    receipt_url = serializers.SerializerMethodField()
+
     class Meta:
         model = Payment
         fields = '__all__'
+        read_only_fields = ['receipt_url']
+
+    def get_receipt_url(self, payment) -> str | None:
+        if not payment.receipt:
+            return None
+        return payment.receipt.url
 
     def validate(self, attrs):
         amount = attrs.get('amount', getattr(self.instance, 'amount', None))
@@ -81,6 +99,17 @@ class GroupClassSerializer(serializers.ModelSerializer):
         model = GroupClass
         fields = '__all__'
         read_only_fields = ['confirmed_count', 'available_spots']
+
+    def validate(self, attrs):
+        starts_at = attrs.get('starts_at', getattr(self.instance, 'starts_at', None))
+        ends_at = attrs.get('ends_at', getattr(self.instance, 'ends_at', None))
+        if starts_at and ends_at and ends_at <= starts_at:
+            raise serializers.ValidationError({
+                'ends_at': 'El término debe ser posterior al inicio.',
+            })
+        if attrs.get('capacity', getattr(self.instance, 'capacity', 1)) < 1:
+            raise serializers.ValidationError({'capacity': 'El cupo debe ser mayor a cero.'})
+        return attrs
 
 
 class BookingSerializer(serializers.ModelSerializer):

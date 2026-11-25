@@ -13,7 +13,10 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.utils import timezone
+from drf_spectacular.utils import extend_schema, inline_serializer
 from rest_framework import decorators, permissions, response, status, viewsets
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
+from rest_framework import serializers as drf_serializers
 from .models import AccessLog, Booking, FacilityEntry, GroupClass, MemberProfile, Membership, Payment, Plan
 from .forms import (GroupClassForm, MemberCreateForm, MembershipForm, PaymentForm, PlanForm, QRScanForm,
                     StaffMembershipForm, StaffPaymentForm)
@@ -21,7 +24,10 @@ from .serializers import (AccessLogSerializer, BookingSerializer, FacilityEntryS
                           MemberProfileSerializer, MembershipSerializer, PaymentSerializer, PlanSerializer,
                           UserRegistrationSerializer)
 from .services import book_class, cancel_booking, register_exit, validate_qr_access
-from .permissions import AdminOnly, AdminOrOwner, AdminOrReadOnly, AdminWriteOwnRead, BookingPermission
+from .permissions import (
+    AdminOnly, AdminOrOwner, AdminOrReadOnly, AdminWriteOwnRead, BookingPermission,
+    StaffOrOwnerUpdate,
+)
 
 
 def is_admin(user):
@@ -478,7 +484,7 @@ class PlanViewSet(BaseModelViewSet):
 class MemberProfileViewSet(BaseModelViewSet):
     queryset = MemberProfile.objects.select_related('user').order_by('user__username')
     serializer_class = MemberProfileSerializer
-    permission_classes = [AdminWriteOwnRead]
+    permission_classes = [StaffOrOwnerUpdate]
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -499,6 +505,7 @@ class PaymentViewSet(BaseModelViewSet):
     queryset = Payment.objects.select_related('member', 'membership').all()
     serializer_class = PaymentSerializer
     permission_classes = [AdminWriteOwnRead]
+    parser_classes = [JSONParser, FormParser, MultiPartParser]
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -578,3 +585,14 @@ class RegisterViewSet(viewsets.GenericViewSet):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
         return response.Response({'id': user.id, 'username': user.username}, status=status.HTTP_201_CREATED)
+
+
+@extend_schema(responses=inline_serializer(
+    name='HealthResponse',
+    fields={'status': drf_serializers.CharField()},
+))
+@decorators.api_view(['GET'])
+@decorators.authentication_classes([])
+@decorators.permission_classes([permissions.AllowAny])
+def health(request):
+    return response.Response({'status': 'ok'})

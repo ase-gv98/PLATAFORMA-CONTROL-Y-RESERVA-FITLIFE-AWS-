@@ -1,4 +1,5 @@
 import secrets
+import os
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -25,6 +26,27 @@ def validate_chilean_rut(value):
     if verifier != expected:
         raise ValidationError('Ingresa un RUT chileno válido con dígito verificador.')
     return f'{body}-{verifier}'
+
+
+def validate_payment_receipt(upload):
+    if upload.size > 2 * 1024 * 1024:
+        raise ValidationError('El comprobante no puede superar 2 MB.')
+
+    extension = os.path.splitext(upload.name)[1].lower()
+    allowed_extensions = {'.pdf', '.png', '.jpg', '.jpeg'}
+    if extension not in allowed_extensions:
+        raise ValidationError('El comprobante debe ser PDF, PNG o JPG.')
+
+    header = upload.read(8)
+    upload.seek(0)
+    valid_signatures = {
+        '.pdf': header.startswith(b'%PDF-'),
+        '.png': header.startswith(b'\x89PNG\r\n\x1a\n'),
+        '.jpg': header.startswith(b'\xff\xd8\xff'),
+        '.jpeg': header.startswith(b'\xff\xd8\xff'),
+    }
+    if not valid_signatures[extension]:
+        raise ValidationError('El contenido del comprobante no coincide con su formato.')
 
 
 class Plan(models.Model):
@@ -124,6 +146,11 @@ class Payment(models.Model):
     reference = models.CharField(max_length=100, unique=True)
     payment_method = models.CharField(max_length=10, choices=Method.choices, default=Method.TRANSFER)
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.PAID)
+    receipt = models.FileField(
+        upload_to='payment-receipts/',
+        blank=True,
+        validators=[validate_payment_receipt],
+    )
 
     class Meta:
         ordering = ['-paid_at']

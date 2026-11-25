@@ -30,6 +30,8 @@ El archivo `.env.example` está listo para SQLite: `POSTGRES_PASSWORD` queda
 vacío y no es necesario instalar PostgreSQL. Para usar PostgreSQL, edita
 solamente `.env` y completa `POSTGRES_PASSWORD`; los valores por defecto son
 la base `fitlife`, usuario `postgres`, host `localhost` y puerto `5432`.
+Reemplaza también los valores de ejemplo de `DJANGO_SECRET_KEY` y
+`JWT_SIGNING_KEY` por claves aleatorias distintas antes de desplegar.
 Nunca subas `.env` al repositorio.
 
 Abrir `http://127.0.0.1:8000/` para la página de inicio Bootstrap. La raíz no inicia ninguna
@@ -75,10 +77,14 @@ permisos para comprobar `403`. Las plantillas son `400.html`, `403.html`,
 ### Configuración automática del entorno
 
 `settings.py` carga `.env` desde la raíz del proyecto mediante
-`python-dotenv`. Los valores de desarrollo son `DJANGO_DEBUG=True`,
-`ALLOWED_HOSTS=127.0.0.1,localhost` y una clave secreta local de respaldo.
-Cuando existe `POSTGRES_PASSWORD`, se usa PostgreSQL; cuando no existe, se
-usa SQLite sin requerir configuración adicional.
+`python-dotenv`. `DJANGO_SECRET_KEY` es obligatoria con `DEBUG=False`;
+`JWT_SIGNING_KEY` siempre es obligatoria y debe ser distinta. `DJANGO_DEBUG`,
+`DJANGO_ALLOWED_HOSTS` y `DJANGO_CSRF_TRUSTED_ORIGINS` se configuran desde
+ese archivo. Cuando existe `POSTGRES_PASSWORD`, se usa PostgreSQL con
+`POSTGRES_SSLMODE` (por defecto `prefer`) y, opcionalmente,
+`POSTGRES_SSLROOTCERT`; cuando no existe, se usa SQLite. `USE_S3=False`
+mantiene archivos localmente. En AWS, `USE_S3=True` usa el bucket configurado
+y el rol IAM de la instancia, sin guardar credenciales AWS en el proyecto.
 
 `.env` y `db.sqlite3` están excluidos por `.gitignore`. Si `.env` se hubiera
 subido anteriormente a Git, dejar de rastrearlo no borra el secreto del
@@ -109,16 +115,22 @@ clientes API que soliciten explícitamente ese formato.
 ## API principal
 
 - `POST /api/auth/register/`: registra un socio y genera su token QR.
-- `POST /api/token/`: obtiene token DRF (`username`, `password`).
-- `GET/POST/PATCH/DELETE /api/plans/`, `/memberships/`, `/payments/`, `/classes/`, `/bookings/`.
+- `POST /api/token/`: inicia sesión con `username` y `password`; devuelve `access` y `refresh`.
+- `POST /api/token/refresh/`: renueva el access token y rota el refresh token.
+- `POST /api/token/blacklist/`: revoca el refresh token al cerrar sesión.
+- `GET /api/health/`: endpoint público para health checks.
+- `GET /api/schema/` y `GET /api/docs/`: esquema OpenAPI y Swagger UI.
+- Los viewsets exponen `GET`, `POST`, `PUT`, `PATCH` y `DELETE`; las escrituras
+  de planes, membresías y pagos son exclusivas de staff. Los socios solo ven
+  sus propios perfiles, reservas, membresías y pagos según sus permisos.
 - `POST /api/access-logs/scan-qr/` con `{"qr_token":"..."}` valida membresía y registra entrada.
 - `POST /api/bookings/{id}/cancel/` cancela y promueve automáticamente al primero de la lista de espera.
 - `GET /api/entries/occupancy/` devuelve el aforo actual.
 - `POST /api/entries/{id}/exit/` registra salida.
 
-Todas las rutas, excepto registro, requieren autenticación por `Token` o sesión.
-
-El dashboard usa sesión web. La API puede autenticarse con `POST /api/token/` y el encabezado `Authorization: Token <token>`.
+Las vistas de la API requieren JWT, salvo registro, tokens, health check y
+documentación. Envía el access token en `Authorization: Bearer <access>`.
+El dashboard y el Admin de Django mantienen su autenticación web por sesión.
 
 ## Guía de pruebas funcionales
 
@@ -131,7 +143,7 @@ Después de ejecutar `seed_demo`, inicia el servidor con `python manage.py runse
 - En `/api/plans/`, `/api/memberships/` y `/api/payments/` prueba el CRUD con los botones
   `GET`, `POST`, `PATCH` y `DELETE` de la interfaz navegable de DRF.
 - Para crear una membresía, usa un `member`, un `plan`, `start_date`, `end_date` y un
-  `status` (`ACTIVE`, `EXPIRED` o `FROZEN`). Una membresía activa con fecha de término
+  `estado` (`ACTIVE`, `EXPIRED` o `FROZEN`). Una membresía activa con fecha de término
   pasada se guarda automáticamente como vencida.
 - Comprueba el resultado en **Membresías** y verifica las etiquetas **Activa**, **Vencida**
   y **Congelada**.
@@ -166,4 +178,8 @@ Después de ejecutar `seed_demo`, inicia el servidor con `python manage.py runse
 
 ## AWS EC2
 
-En EC2 se usa el mismo proyecto y PostgreSQL local de la instancia. Se deben configurar las variables de `.env`, ejecutar `migrate` y `collectstatic`, y servir con Gunicorn detrás de Nginx. Nunca se debe subir `.env` al repositorio.
+En EC2 se usa el mismo proyecto y PostgreSQL local de la instancia. Configura
+las variables de `.env`, habilita `USE_S3=True` y el rol IAM de la instancia,
+ejecuta `migrate` y `collectstatic`, y sirve con Gunicorn detrás de Nginx.
+No habilites cookies Secure ni redirección SSL en el laboratorio HTTP; activa
+esas opciones solo al desplegar detrás de HTTPS. Nunca se debe subir `.env`.

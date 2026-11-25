@@ -1,5 +1,10 @@
 Django==5.2.17
 djangorestframework==3.18.0
+djangorestframework-simplejwt
+argon2-cffi
+django-storages[s3]
+boto3
+drf-spectacular
 psycopg2-binary==2.9.10
 gunicorn==23.0.0
 python-dotenv==1.1.1

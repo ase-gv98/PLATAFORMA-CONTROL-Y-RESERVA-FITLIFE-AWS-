@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+from datetime import timedelta
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -23,20 +25,29 @@ load_dotenv(BASE_DIR / '.env')
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-local-only-change-me')
+DEBUG = os.getenv('DJANGO_DEBUG', 'False').strip().lower() == 'true'
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
+if not SECRET_KEY:
+    if not DEBUG:
+        raise ImproperlyConfigured('DJANGO_SECRET_KEY es obligatorio cuando DEBUG=False.')
+    SECRET_KEY = 'django-insecure-local-only-change-me'
+
+JWT_SIGNING_KEY = os.getenv('JWT_SIGNING_KEY')
+if not JWT_SIGNING_KEY:
+    raise ImproperlyConfigured('JWT_SIGNING_KEY es obligatorio.')
+if JWT_SIGNING_KEY == SECRET_KEY:
+    raise ImproperlyConfigured('JWT_SIGNING_KEY debe ser distinta de DJANGO_SECRET_KEY.')
 
 ALLOWED_HOSTS = [
-    '127.0.0.1',
-    'localhost',
-    *[
-        host.strip()
-        for host in os.getenv('DJANGO_ALLOWED_HOSTS', '').split(',')
-        if host.strip() and host.strip() not in {'127.0.0.1', 'localhost'}
-    ],
+    host.strip()
+    for host in os.getenv('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+    if host.strip()
+]
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',')
+    if origin.strip()
 ]
 
 
@@ -51,7 +62,9 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.humanize',
     'rest_framework',
-    'rest_framework.authtoken',
+    'rest_framework_simplejwt.token_blacklist',
+    'storages',
+    'drf_spectacular',
     'core',
 ]
 
@@ -89,6 +102,11 @@ WSGI_APPLICATION = 'fitlife_backend.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 if os.getenv('POSTGRES_PASSWORD'):
+    postgres_options = {
+        'sslmode': os.getenv('POSTGRES_SSLMODE', 'prefer'),
+    }
+    if os.getenv('POSTGRES_SSLROOTCERT'):
+        postgres_options['sslrootcert'] = os.environ['POSTGRES_SSLROOTCERT']
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
@@ -97,6 +115,7 @@ if os.getenv('POSTGRES_PASSWORD'):
             'PASSWORD': os.environ['POSTGRES_PASSWORD'],
             'HOST': os.getenv('POSTGRES_HOST', 'localhost'),
             'PORT': os.getenv('POSTGRES_PORT', '5432'),
+            'OPTIONS': postgres_options,
         }
     }
 else:
@@ -126,6 +145,13 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# Argon2 is preferred for newly set passwords; PBKDF2 remains enabled to verify
+# existing password hashes and upgrade them on the next successful login.
+PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.Argon2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+]
+
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
@@ -142,19 +168,81 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static']
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+USE_S3 = os.getenv('USE_S3', 'False').strip().lower() == 'true'
+if USE_S3:
+    AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
+    CLOUDFRONT_DOMAIN = os.getenv('CLOUDFRONT_DOMAIN')
+    if not AWS_STORAGE_BUCKET_NAME or not CLOUDFRONT_DOMAIN:
+        raise ImproperlyConfigured(
+            'AWS_STORAGE_BUCKET_NAME y CLOUDFRONT_DOMAIN son obligatorios cuando USE_S3=True.'
+        )
+    STATIC_URL = f'https://{CLOUDFRONT_DOMAIN}/public/'
+    STORAGES = {
+        'default': {
+            'BACKEND': 'storages.backends.s3.S3Storage',
+            'OPTIONS': {
+                'bucket_name': AWS_STORAGE_BUCKET_NAME,
+                'location': 'private',
+                'querystring_auth': True,
+                'querystring_expire': 300,
+            },
+        },
+        'staticfiles': {
+            'BACKEND': 'storages.backends.s3.S3Storage',
+            'OPTIONS': {
+                'bucket_name': AWS_STORAGE_BUCKET_NAME,
+                'location': 'public',
+                'custom_domain': CLOUDFRONT_DOMAIN,
+                'querystring_auth': False,
+            },
+        },
+    }
+else:
+    STATIC_URL = '/static/'
+    STORAGES = {
+        'default': {
+            'BACKEND': 'django.core.files.storage.FileSystemStorage',
+        },
+        'staticfiles': {
+            'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+        },
+    }
+
+# The lab serves over HTTP: intentionally leave SSL redirects and Secure cookies
+# disabled until the deployment is behind HTTPS.
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+SESSION_COOKIE_HTTPONLY = True
 
 REST_FRAMEWORK = {
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',
-        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.IsAuthenticated'],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
     'EXCEPTION_HANDLER': 'core.exceptions.fitlife_exception_handler',
+}
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': JWT_SIGNING_KEY,
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'FitLife API',
+    'DESCRIPTION': 'API de control y reservas FitLife.',
+    'VERSION': '1.0.0',
 }
 
 LOGIN_URL = '/accounts/login/'
